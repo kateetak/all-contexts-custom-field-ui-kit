@@ -1,0 +1,39 @@
+modules:
+  jira:customField:
+    - key: all-contexts-custom-field-ui-kit
+      name: all-contexts-custom-field-ui-kit
+      description: All Contexts | UI Kit
+      type: string
+      view:
+        render: native
+        resource: main
+        experience:
+          - issue-view
+      edit:
+        resource: edit
+        render: native
+        isInline: true
+        experience:
+          - issue-create
+          - issue-transition
+          - issue-view
+      resolver:
+        function: resolver
+  function:
+      - key: resolver
+        handler: index.handler
+resources:
+  - key: main
+    path: src/frontend/index.jsx
+  - key: edit
+    path: src/frontend/edit.jsx
+permissions:
+  scopes:
+    - read:jira-work
+    - manage:jira-configuration
+app:
+  runtime:
+    name: nodejs22.x
+    memoryMB: 256
+    architecture: arm64
+  id: ari:cloud:ecosystem::app/d3c48b63-de3d-4482-99c3-99108635e226
