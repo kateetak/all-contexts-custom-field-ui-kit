@@ -11,7 +11,7 @@ const Edit = () => {
 
   useEffect(() => {
     const fetchOptions = async () => {
-      const options = await invoke('getContexts');
+      const options = await invoke('get-contexts');
       // Map to { label, value } format for Select
       const mappedOptions = Array.isArray(options)
         ? options.map(opt => ({ label: opt.label, value: opt.label }))

@@ -1,8 +1,170 @@
 import Resolver from '@forge/resolver';
-import api, { route } from "@forge/api";
+import api, { route, storage } from "@forge/api";
+import { InvocationError, InvocationErrorCode, Queue } from "@forge/events";
 
 const resolver = new Resolver();
 const customFieldId = "customfield_10107";
+const STORAGE_KEY = "all-context-options";
+const queueLoadContexts = new Queue({ key: 'load-contexts' });
+const queueLoadContextOptions = new Queue({ key: 'load-context-options' });
+
+// Scheduled trigger handler
+export const trigger = async ({ context }) => {
+  console.debug(`Scheduled trigger executed at ${new Date().toISOString()} with context: ${JSON.stringify(context)}`);
+  // Instead of loading contexts here, just enqueue a single job with the customFieldId
+  await queueLoadContexts.push({});
+};
+
+resolver.define('load-contexts', async () => {
+  console.debug(`Loading contexts for customFieldId: ${customFieldId}`);
+  let startAt = 0, isLast = false, pageSize = 50;
+  while (!isLast) {
+    const response = await api.asApp().requestJira(
+      route`/rest/api/3/field/${customFieldId}/context?startAt=${startAt}&maxResults=${pageSize}`
+    );
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error(`Jira API error (contexts): ${response.status} - ${errorBody}`);
+      throw new Error(`Jira API error (contexts): ${response.status}`);
+    }
+    let data;
+    try {
+      data = await response.json();
+    } catch (err) {
+      console.error('Failed to parse JSON from Jira API response:', err);
+      throw new Error('Failed to parse JSON from Jira API response');
+    }
+    if (!data || !Array.isArray(data.values)) {
+      console.error('Jira API response missing or invalid "values" array:', data);
+      throw new Error('Jira API response missing or invalid "values" array');
+    }
+    for (const context of data.values) {
+      try {
+        const payload = { contextId: context.id };
+        await queueLoadContextOptions.push(payload);
+      } catch (err) {
+        console.error(`Failed to enqueue context ${context.id}:`, err);
+      }
+    }
+    isLast = data.isLast;
+    startAt += data.maxResults;
+  }
+});
+
+
+resolver.define('load-context-options', async ({ payload }) => {
+  console.debug(`load-context-options | Payload received: ${JSON.stringify(payload)}`);
+  console.debug(`Loading context options for customFieldId: ${customFieldId} and contextId: ${payload?.contextId}`);
+  
+  const { contextId } = payload || {};
+
+  if (!contextId) {
+    console.error('Missing contextId in payload:', payload);
+    throw new Error('Missing contextId in payload');
+  }
+
+  let contextProjectMappings;
+  try {
+    contextProjectMappings = await fetchContextProjectMappings();
+  } catch (err) {
+    console.error('Failed to fetch context project mappings:', err);
+    throw new Error('Failed to fetch context project mappings');
+  }
+
+  const contextIdToProjectId = {};
+  contextProjectMappings.forEach(mapping => {
+    contextIdToProjectId[mapping.contextId] = mapping.projectId;
+  });
+
+  let projectDetails = {};
+  try {
+    const uniqueProjectIds = [...new Set(contextProjectMappings.map(m => m.projectId))];
+    projectDetails = await fetchProjectDetails(uniqueProjectIds);
+  } catch (err) {
+    console.error('Failed to fetch project details:', err);
+    throw new Error('Failed to fetch project details');
+  }
+
+  let options = [];
+  try {
+    options = await fetchEnabledOptionsForContext(contextId);
+  } catch (err) {
+    console.error(`Failed to fetch options for contextId ${contextId}:`, err);
+    throw new Error(`Failed to fetch options for contextId ${contextId}`);
+  }
+
+  const projectId = contextIdToProjectId[contextId] || '';
+  const projectInfo = projectDetails[projectId] || { key: '', name: '' };
+  const contextLabels = options.map(opt => ({
+    label: `${opt.value} | ${projectInfo.key} | ${projectInfo.name}`
+  }));
+
+  // Save/append to storage
+  try {
+    let allLabels = (await storage.get(STORAGE_KEY)) || [];
+    allLabels = allLabels.filter(l => !contextLabels.some(cl => cl.label === l.label));
+    allLabels = allLabels.concat(contextLabels);
+    await storage.set(STORAGE_KEY, allLabels);
+  } catch (err) {
+    console.error('Failed to save labels to storage:', err);
+    throw new Error('Failed to save labels to storage');
+  }
+});
+
+
+// NOT USED: TODO: Remove this resolver
+
+// Queue handler for processing each context or the whole field
+resolver.define('process-context-options-queue', async ({payload, context}) => {
+  
+  console.debug(`Processing context options queue with payload: ${JSON.stringify(payload)} and context: ${JSON.stringify(context)}`);
+  const { customFieldId, contextId } = payload;
+  
+  // If contextId is not provided, this is the "root" job: fetch all contexts and enqueue a job for each
+  if (!contextId) {
+    let startAt = 0, isLast = false, allContexts = [];
+    const pageSize = 50;
+    while (!isLast) {
+      const response = await api.asApp().requestJira(
+        route`/rest/api/3/field/${customFieldId}/context?startAt=${startAt}&maxResults=${pageSize}`
+      );
+      const data = await response.json();
+      allContexts = allContexts.concat(data.values.map(context => ({ id: context.id })));
+      isLast = data.isLast;
+      startAt += data.maxResults;
+    }
+    // Enqueue each context for processing
+    for (const context of allContexts) {
+      await queue.push({ customFieldId, contextId: context.id });
+    }
+    return;
+  }
+
+  // Fetch project mappings
+  const contextProjectMappings = await fetchContextProjectMappings();
+  const contextIdToProjectId = {};
+  contextProjectMappings.forEach(mapping => {
+    contextIdToProjectId[mapping.contextId] = mapping.projectId;
+  });
+
+  // Fetch project details
+  const uniqueProjectIds = [...new Set(contextProjectMappings.map(m => m.projectId))];
+  const projectDetails = await fetchProjectDetails(uniqueProjectIds);
+
+  // Fetch options for this context
+  const options = await fetchEnabledOptionsForContext(contextId);
+  const projectId = contextIdToProjectId[contextId] || '';
+  const projectInfo = projectDetails[projectId] || { key: '', name: '' };
+  const contextLabels = options.map(opt => ({
+    label: `${opt.value} | ${projectInfo.key} | ${projectInfo.name}`
+  }));
+
+  // Save/append to storage
+  let allLabels = (await storage.get(STORAGE_KEY)) || [];
+  allLabels = allLabels.filter(l => !contextLabels.some(cl => cl.label === l.label)); // Remove old labels for this context
+  allLabels = allLabels.concat(contextLabels);
+  await storage.set(STORAGE_KEY, allLabels);
+});
 
 // Helper to fetch all enabled options for a context (with pagination)
 async function fetchEnabledOptionsForContext(contextId) {
@@ -98,67 +260,14 @@ async function fetchProjectDetails(projectIds) {
   }
 }
 
-resolver.define('getContexts', async (req) => {
-  const pageSize = 50;
-  let startAt = 0;
-  let allContexts = [];
-  let isLast = false;
+// Resolver for frontend to get options from storage
+resolver.define('get-contexts', async () => {
+  console.debug(`Fetching contexts from storage: ${STORAGE_KEY}`);
+  const labels = await storage.get(STORAGE_KEY);
 
-  try {
-    console.log(`Fetching contexts for custom field ${customFieldId} with pagination`);
-    while (!isLast) {
-      const response = await api.asApp().requestJira(
-        route`/rest/api/3/field/${customFieldId}/context?startAt=${startAt}&maxResults=${pageSize}`
-      );
-      if (!response.ok) {
-        const errorBody = await response.text();
-        console.error(`Jira API error: ${response.status} - ${errorBody}`);
-        return { error: `Jira API error: ${response.status}` };
-      }
-      const data = await response.json();
-      console.log(`Contexts page fetched: ${JSON.stringify(data)}`);
-      allContexts = allContexts.concat(data.values.map(context => ({
-        id: context.id
-      })));
-      isLast = data.isLast;
-      startAt += data.maxResults;
-      console.log(`Fetched ${JSON.stringify(allContexts)} contexts so far.`);
-    }
+  console.debug(`Fetched contexts: ${JSON.stringify(labels)}`);
 
-    // Fetch project mappings
-    const contextProjectMappings = await fetchContextProjectMappings();
-    const contextIdToProjectId = {};
-    contextProjectMappings.forEach(mapping => {
-      contextIdToProjectId[mapping.contextId] = mapping.projectId;
-    });
-
-    // Get unique projectIds
-    const uniqueProjectIds = [
-      ...new Set(contextProjectMappings.map(mapping => mapping.projectId))
-    ];
-
-    // Fetch project details (key and name)
-    const projectDetails = await fetchProjectDetails(uniqueProjectIds);
-
-    // Collect all labels
-    let labels = [];
-    for (const context of allContexts) {
-      const options = await fetchEnabledOptionsForContext(context.id);
-      const projectId = contextIdToProjectId[context.id] || '';
-      const projectInfo = projectDetails[projectId] || { key: '', name: '' };
-      const contextLabels = options.map(opt => ({
-        label: `${opt.value} | ${projectInfo.key} | ${projectInfo.name}`
-      }));
-      labels = labels.concat(contextLabels);
-    }
-
-    console.log(`All labels fetched: ${JSON.stringify(labels, null, 2)}`);
-
-    return labels;
-  } catch (error) {
-    console.error('Error fetching contexts or options:', error);
-    return { error: 'Failed to fetch contexts or options from Jira API.' };
-  }
+  return Array.isArray(labels) ? labels : [];
 });
 
 //TODO: Remove this resolvers. Just for testing purposes.
