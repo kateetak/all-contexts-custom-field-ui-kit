@@ -12,12 +12,11 @@ const Edit = () => {
   useEffect(() => {
     const fetchOptions = async () => {
       const options = await invoke('get-contexts');
-      // Map to { label, value } format for Select
       const mappedOptions = Array.isArray(options)
-        ? options.map(opt => ({ label: opt.label, value: opt.label }))
+        ? options.map(opt => ({ label: opt, value: opt }))
         : [{ label: 'No options found', value: '' }];
-
-      console.log('Fetched options:', mappedOptions);
+      console.log('Fetched raw options from backend:', options);
+      console.table(mappedOptions);
       setSelectOptions(mappedOptions);
     };
     fetchOptions();
@@ -27,8 +26,10 @@ const Edit = () => {
   const handleInputChange = useCallback(async (inputValue) => {
     const options = await invoke('get-contexts', { query: inputValue });
     const mappedOptions = Array.isArray(options)
-      ? options.map(opt => ({ label: opt.label, value: opt.label }))
+      ? options.map(opt => ({ label: opt, value: opt }))
       : [{ label: 'No options found', value: '' }];
+    console.log('Fetched raw options from backend:', options);
+    console.table(mappedOptions);
     setSelectOptions(mappedOptions);
   }, []);
 
@@ -51,6 +52,7 @@ const Edit = () => {
         options={selectOptions}
         onChange={handleOnChange}
         onInputChange={handleInputChange}
+        isClearable={true}
       />
     </CustomFieldEdit>
   );

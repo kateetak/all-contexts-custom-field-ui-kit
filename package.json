@@ -2,7 +2,7 @@
   "name": "jira-custom-field-ui-kit",
   "version": "3.0.1",
   "main": "index.js",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "private": true,
   "scripts": {
     "lint": "eslint src/**/* || npm run --silent hook-errors",
