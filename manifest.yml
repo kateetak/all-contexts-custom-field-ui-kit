@@ -22,7 +22,25 @@ modules:
   scheduledTrigger:
     - key: scheduled-context-options-trigger
       function: triggerHandler
-      interval: fiveMinute # every 5 minutes
+      # TODO: disable the 5 minute interval
+      interval: fiveMinute #every 5 minutes
+      # TODO: enable the 24 hour interval
+      #interval: day # every 24 hours
+  trigger:
+    - key: forge-app-on-install
+      events:
+        - avi:forge:installed:app
+      function: triggerHandler
+  # Currently confirming the functionality of the product event trigger
+  #trigger:
+  #  - key: field-context-configuration-updated
+  #    events: 
+  #      - avi:jira:updated:field:context:configuration
+  #    function: contextChangedHandler
+  #    filter:
+  #      ignoreSelf: true
+  #      expression: event.customFieldId == 'customfield_10107' # TODO: Replace with your custom field ID
+  #      onError: IGNORE_AND_LOG
   consumer:
     - key: load-contexts-consumer
       queue: load-contexts
@@ -45,9 +63,8 @@ modules:
         handler: index.handler
       - key: get-contexts
         handler: index.handler
-      # Replacing the resolver function with a scheduled trigger
-      #- key: resolver
-      #  handler: index.handler
+      - key: contextChangedHandler
+        handler: index.contextChangedHandler
 resources:
   - key: main
     path: src/frontend/index.jsx

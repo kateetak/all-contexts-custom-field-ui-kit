@@ -1,1 +1,1 @@
-export { handler, trigger } from './resolvers/main';
+export { handler, trigger, contextChangedHandler } from './resolvers/main';

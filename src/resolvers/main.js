@@ -4,14 +4,28 @@ import { Queue } from "@forge/events";
 import { getAllLabels, mergeAndSaveLabels } from './storage';
 
 const resolver = new Resolver();
+
+// TODO: Replace with your custom field ID
 const customFieldId = "customfield_10107";
 const queueLoadContexts = new Queue({ key: 'load-contexts' });
 const queueLoadContextOptions = new Queue({ key: 'load-context-options' });
 
 // Scheduled trigger handler
-export const trigger = async ({ context }) => {
-  console.debug(`Scheduled trigger executed at ${new Date().toISOString()} with context: ${JSON.stringify(context)}`);
+// Runs every 24 hours to load contexts
+export const trigger = async (payload) => {
+  // trigger can be invoked at installation or on a schedule
+  console.debug(`Trigger executed at ${new Date().toISOString()} with payload: ${JSON.stringify(payload, null, 2)}`);
   await queueLoadContexts.push({});
+};
+
+// Context change handler
+// This handler is triggered when the custom field context changes
+export async function contextChangedHandler(event, context) {
+  console.debug(`Context change event received: ${JSON.stringify(event, null, 2)}`);
+  console.debug(`Context change handler executed at ${new Date().toISOString()} with context: ${JSON.stringify(context, null, 2)}`);
+  
+  //await queueLoadContexts.push({});
+  return;
 };
 
 resolver.define('load-contexts', async () => {
