@@ -1,17 +1,16 @@
 import Resolver from '@forge/resolver';
-import api, { route, storage } from "@forge/api";
+import api, { route } from "@forge/api";
 import { Queue } from "@forge/events";
+import { getAllLabels, mergeAndSaveLabels } from './storage';
 
 const resolver = new Resolver();
 const customFieldId = "customfield_10107";
-const STORAGE_KEY = "all-context-options";
 const queueLoadContexts = new Queue({ key: 'load-contexts' });
 const queueLoadContextOptions = new Queue({ key: 'load-context-options' });
 
 // Scheduled trigger handler
 export const trigger = async ({ context }) => {
   console.debug(`Scheduled trigger executed at ${new Date().toISOString()} with context: ${JSON.stringify(context)}`);
-  // Instead of loading contexts here, just enqueue a single job with the customFieldId
   await queueLoadContexts.push({});
 };
 
@@ -50,7 +49,6 @@ resolver.define('load-contexts', async () => {
     startAt += data.maxResults;
   }
 });
-
 
 resolver.define('load-context-options', async ({ payload }) => {
   console.debug(`load-context-options | Payload received: ${JSON.stringify(payload)}`);
@@ -99,21 +97,14 @@ resolver.define('load-context-options', async ({ payload }) => {
     label: `${opt.value} | ${projectInfo.key} | ${projectInfo.name}`
   }));
 
-  // Save/append to storage
+  // Save/append to storage using helper
   try {
-    let allLabels = (await storage.get(STORAGE_KEY)) || [];
-    allLabels = allLabels.filter(l => !contextLabels.some(cl => cl.label === l.label));
-    allLabels = allLabels.concat(contextLabels);
-    await storage.set(STORAGE_KEY, allLabels);
+    await mergeAndSaveLabels(contextLabels);
   } catch (err) {
     console.error('Failed to save labels to storage:', err);
     throw new Error('Failed to save labels to storage');
   }
 });
-
-
-// NOT USED: TODO: Remove this resolver
-
 
 // Helper to fetch all enabled options for a context (with pagination)
 async function fetchEnabledOptionsForContext(contextId) {
@@ -211,12 +202,10 @@ async function fetchProjectDetails(projectIds) {
 
 // Resolver for frontend to get options from storage
 resolver.define('get-contexts', async () => {
-  console.debug(`Fetching contexts from storage: ${STORAGE_KEY}`);
-  const labels = await storage.get(STORAGE_KEY);
-
+  console.debug(`Fetching contexts from storage`);
+  const labels = await getAllLabels();
   console.debug(`Fetched contexts: ${JSON.stringify(labels)}`);
-
-  return Array.isArray(labels) ? labels : [];
+  return labels;
 });
 
 //TODO: Remove this resolvers. Just for testing purposes.

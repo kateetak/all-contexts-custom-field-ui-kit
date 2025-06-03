@@ -37,9 +37,9 @@ modules:
   function:
       - key: triggerHandler
         handler: index.trigger
-      - key: contexts-function
-        handler: index.handler
       - key: contextsHandler
+        handler: index.handler
+      - key: contexts-function
         handler: index.handler
       - key: contextOptionsHandler
         handler: index.handler

@@ -1,2 +1,1 @@
-export { handler } from './resolvers';
-export { trigger } from './resolvers';
+export { handler, trigger } from './resolvers/main';
