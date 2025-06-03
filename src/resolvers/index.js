@@ -1,6 +1,6 @@
 import Resolver from '@forge/resolver';
 import api, { route, storage } from "@forge/api";
-import { InvocationError, InvocationErrorCode, Queue } from "@forge/events";
+import { Queue } from "@forge/events";
 
 const resolver = new Resolver();
 const customFieldId = "customfield_10107";
@@ -114,57 +114,6 @@ resolver.define('load-context-options', async ({ payload }) => {
 
 // NOT USED: TODO: Remove this resolver
 
-// Queue handler for processing each context or the whole field
-resolver.define('process-context-options-queue', async ({payload, context}) => {
-  
-  console.debug(`Processing context options queue with payload: ${JSON.stringify(payload)} and context: ${JSON.stringify(context)}`);
-  const { customFieldId, contextId } = payload;
-  
-  // If contextId is not provided, this is the "root" job: fetch all contexts and enqueue a job for each
-  if (!contextId) {
-    let startAt = 0, isLast = false, allContexts = [];
-    const pageSize = 50;
-    while (!isLast) {
-      const response = await api.asApp().requestJira(
-        route`/rest/api/3/field/${customFieldId}/context?startAt=${startAt}&maxResults=${pageSize}`
-      );
-      const data = await response.json();
-      allContexts = allContexts.concat(data.values.map(context => ({ id: context.id })));
-      isLast = data.isLast;
-      startAt += data.maxResults;
-    }
-    // Enqueue each context for processing
-    for (const context of allContexts) {
-      await queue.push({ customFieldId, contextId: context.id });
-    }
-    return;
-  }
-
-  // Fetch project mappings
-  const contextProjectMappings = await fetchContextProjectMappings();
-  const contextIdToProjectId = {};
-  contextProjectMappings.forEach(mapping => {
-    contextIdToProjectId[mapping.contextId] = mapping.projectId;
-  });
-
-  // Fetch project details
-  const uniqueProjectIds = [...new Set(contextProjectMappings.map(m => m.projectId))];
-  const projectDetails = await fetchProjectDetails(uniqueProjectIds);
-
-  // Fetch options for this context
-  const options = await fetchEnabledOptionsForContext(contextId);
-  const projectId = contextIdToProjectId[contextId] || '';
-  const projectInfo = projectDetails[projectId] || { key: '', name: '' };
-  const contextLabels = options.map(opt => ({
-    label: `${opt.value} | ${projectInfo.key} | ${projectInfo.name}`
-  }));
-
-  // Save/append to storage
-  let allLabels = (await storage.get(STORAGE_KEY)) || [];
-  allLabels = allLabels.filter(l => !contextLabels.some(cl => cl.label === l.label)); // Remove old labels for this context
-  allLabels = allLabels.concat(contextLabels);
-  await storage.set(STORAGE_KEY, allLabels);
-});
 
 // Helper to fetch all enabled options for a context (with pagination)
 async function fetchEnabledOptionsForContext(contextId) {
