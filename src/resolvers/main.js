@@ -201,11 +201,16 @@ async function fetchProjectDetails(projectIds) {
 }
 
 // Resolver for frontend to get options from storage
-resolver.define('get-contexts', async () => {
-  console.debug(`Fetching contexts from storage`);
+resolver.define('get-contexts', async ({ payload }) => {
+  const { query } = payload || {};
   const labels = await getAllLabels();
-  console.debug(`Fetched contexts: ${JSON.stringify(labels)}`);
-  return labels;
+  if (query && query.trim()) {
+    // Filter by query (case-insensitive)
+    const filtered = labels.filter(l => l.label.toLowerCase().includes(query.trim().toLowerCase()));
+    return filtered.slice(0, 20);
+  }
+  // Return first 20 if no query
+  return labels.slice(0, 20);
 });
 
 //TODO: Remove this resolvers. Just for testing purposes.

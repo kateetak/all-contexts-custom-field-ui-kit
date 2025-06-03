@@ -23,6 +23,15 @@ const Edit = () => {
     fetchOptions();
   }, []);
 
+  // Load options on input change
+  const handleInputChange = useCallback(async (inputValue) => {
+    const options = await invoke('get-contexts', { query: inputValue });
+    const mappedOptions = Array.isArray(options)
+      ? options.map(opt => ({ label: opt.label, value: opt.label }))
+      : [{ label: 'No options found', value: '' }];
+    setSelectOptions(mappedOptions);
+  }, []);
+
   const onSubmit = useCallback(async () => {
     try {
       await view.submit(value);
@@ -37,7 +46,12 @@ const Edit = () => {
 
   return (
     <CustomFieldEdit onSubmit={onSubmit} hideActionButtons>
-      <Select appearance="default" options={selectOptions} onChange={handleOnChange} />
+      <Select
+        appearance="default"
+        options={selectOptions}
+        onChange={handleOnChange}
+        onInputChange={handleInputChange}
+      />
     </CustomFieldEdit>
   );
 };
