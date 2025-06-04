@@ -6,7 +6,7 @@ modules:
       type: string
       view:
         render: native
-        resource: main
+        resource: view
         experience:
           - issue-view
       edit:
@@ -18,19 +18,63 @@ modules:
           - issue-transition
           - issue-view
       resolver:
-        function: resolver
+        function: get-contexts
+  scheduledTrigger:
+    - key: scheduled-context-options-trigger
+      function: triggerHandler
+      # TODO: disable the 5 minute interval
+      interval: fiveMinute #every 5 minutes
+      # TODO: enable the 24 hour interval
+      #interval: day # every 24 hours
+  trigger:
+    - key: forge-app-on-install
+      events:
+        - avi:forge:installed:app
+      function: triggerHandler
+  # Currently confirming the functionality of the product event trigger
+  #trigger:
+  #  - key: field-context-configuration-updated
+  #    events: 
+  #      - avi:jira:updated:field:context:configuration
+  #    function: contextChangedHandler
+  #    filter:
+  #      ignoreSelf: true
+  #      expression: event.customFieldId == 'customfield_10107' # TODO: Replace with your custom field ID
+  #      onError: IGNORE_AND_LOG
+  consumer:
+    - key: load-contexts-consumer
+      queue: load-contexts
+      resolver:
+        function: contextsHandler
+        method: load-contexts
+    - key: load-context-options-consumer
+      queue: load-context-options
+      resolver:
+        function: contextOptionsHandler
+        method: load-context-options
   function:
-      - key: resolver
+      - key: triggerHandler
+        handler: index.trigger
+      - key: contextsHandler
         handler: index.handler
+      - key: contexts-function
+        handler: index.handler
+      - key: contextOptionsHandler
+        handler: index.handler
+      - key: get-contexts
+        handler: index.handler
+      - key: contextChangedHandler
+        handler: index.contextChangedHandler
 resources:
-  - key: main
-    path: src/frontend/index.jsx
+  - key: view
+    path: src/frontend/view.jsx
   - key: edit
     path: src/frontend/edit.jsx
 permissions:
   scopes:
     - read:jira-work
     - manage:jira-configuration
+    - storage:app
 app:
   runtime:
     name: nodejs22.x

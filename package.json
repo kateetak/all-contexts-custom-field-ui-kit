@@ -2,7 +2,7 @@
   "name": "jira-custom-field-ui-kit",
   "version": "3.0.1",
   "main": "index.js",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "private": true,
   "scripts": {
     "lint": "eslint src/**/* || npm run --silent hook-errors",
@@ -15,6 +15,7 @@
   "dependencies": {
     "@forge/api": "^5.2.1",
     "@forge/bridge": "4.5.3",
+    "@forge/events": "^1.0.2",
     "@forge/react": "11.2.2",
     "@forge/resolver": "^1.6.11",
     "react": "^18.2.0"

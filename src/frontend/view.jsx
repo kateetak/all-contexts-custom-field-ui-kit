@@ -8,12 +8,15 @@ const View = () => {
   const [fieldValue, setFieldValue] = useState(null);
 
   useEffect(() => {
-    view.getContext().then((context) => { setFieldValue(context.extension.fieldValue) });
+    view.getContext().then((context) => { 
+      //console.log(`Context received: ${JSON.stringify(context, null, 2)}`);
+      setFieldValue(context.extension.fieldValue) 
+    });
   }, []);
 
   return (
     <>
-      <Text>{`Hello ${fieldValue || 'world'}!`}</Text>
+      <Text>{fieldValue ? fieldValue : "Select..."}</Text>
     </>
   );
 };
