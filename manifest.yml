@@ -6,7 +6,7 @@ modules:
       type: string
       view:
         render: native
-        resource: main
+        resource: view
         experience:
           - issue-view
       edit:
@@ -66,8 +66,8 @@ modules:
       - key: contextChangedHandler
         handler: index.contextChangedHandler
 resources:
-  - key: main
-    path: src/frontend/index.jsx
+  - key: view
+    path: src/frontend/view.jsx
   - key: edit
     path: src/frontend/edit.jsx
 permissions:

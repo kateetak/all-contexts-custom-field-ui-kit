@@ -5,6 +5,8 @@ import { getAllLabels, saveLabels } from './storage';
 
 const resolver = new Resolver();
 
+//TODO: Replace with your customFieldId
+//TODO: Change this to an environment variable
 const customFieldId = "customfield_10107";
 const queueLoadContexts = new Queue({ key: 'load-contexts' });
 const queueLoadContextOptions = new Queue({ key: 'load-context-options' });
