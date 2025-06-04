@@ -11,8 +11,12 @@
 # Improvements
 # Must Have
 - [MUST HAVE] Add an environment variable to set the customFieldId
-- [MUST HAVE] Filter labels in the frontend
 
 # Nice to Have
 - [nice to have] Only use one queue (not two) - merge load-contexts and load-context-options
 - [nice to have] [non trivial] Listen to the https://developer.atlassian.com/platform/forge/events-reference/jira/#custom-field-context-configuration-events | Would require managing race conditions when multiple users are changing the context at the same time
+
+
+# Changelog
+- 2025-06-04:
+    - Implemented "[MUST HAVE] Filter labels in the frontend"
