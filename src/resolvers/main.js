@@ -227,16 +227,9 @@ async function fetchProjectDetails(projectIds) {
 }
 
 // Resolver for frontend to get options from storage
-resolver.define('get-contexts', async ({ payload }) => {
-  const { query } = payload || {};
+resolver.define('get-contexts', async () => {
   const labels = await getAllLabels();
-  if (query && query.trim()) {
-    const filtered = labels.filter(l => l && l.toLowerCase().includes(query.trim().toLowerCase()));
-    console.debug(`[get-contexts] Returning ${filtered.slice(0, 20).length} filtered labels for query "${query}"`);
-    return filtered.slice(0, 20);
-  }
-  console.debug(`[get-contexts] Returning first 20 labels (no query)`);
-  return labels.slice(0, 20);
+  return labels;
 });
 
 export const handler = resolver.getDefinitions();

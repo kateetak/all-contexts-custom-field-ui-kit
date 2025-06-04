@@ -8,6 +8,6 @@ export async function getAllLabels() {
 }
 
 export async function saveLabels(newLabels) {
-  console.log(`Saving labels: ${JSON.stringify(newLabels, null, 2)}`);
+  console.debug(`Saving labels: ${JSON.stringify(newLabels, null, 2)}`);
   await storage.set(STORAGE_KEY, newLabels);
 }
